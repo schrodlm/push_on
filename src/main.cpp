@@ -1,5 +1,9 @@
 #include "raylib.h"
-#include <cmath>
+#include "Player.h"
+#include "Enemy.h"
+#include <vector>
+#include <memory>
+#include <string>
 #include <algorithm>
 
 constexpr int SCREEN_WIDTH = 1280;
@@ -9,49 +13,93 @@ constexpr int TARGET_FPS = 60;
 int main(void)
 {
     // Initialization
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Roguelike Game");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Push On");
     SetTargetFPS(TARGET_FPS);
 
-    // Player setup
-    Vector2 playerPos = { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f };
-    float playerSpeed = 300.0f;
-    float playerRadius = 20.0f;
+    // Create player
+    Player player({ SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f });
+
+    // Create some test enemies
+    std::vector<std::unique_ptr<Enemy>> enemies;
+    enemies.push_back(std::make_unique<Enemy>(Vector2{ 200.0f, 200.0f }));
+    enemies.push_back(std::make_unique<Enemy>(Vector2{ 1080.0f, 200.0f }));
+    enemies.push_back(std::make_unique<Enemy>(Vector2{ 640.0f, 500.0f }));
+
+    int enemiesKilled = 0;
 
     // Main game loop
     while (!WindowShouldClose())
     {
-        // Update
         float deltaTime = GetFrameTime();
 
-        // Player movement (WASD)
-        Vector2 movement = { 0.0f, 0.0f };
-        if (IsKeyDown(KEY_W)) movement.y -= 1.0f;
-        if (IsKeyDown(KEY_S)) movement.y += 1.0f;
-        if (IsKeyDown(KEY_A)) movement.x -= 1.0f;
-        if (IsKeyDown(KEY_D)) movement.x += 1.0f;
+        // Update player
+        player.Update(deltaTime);
 
-        // Normalize diagonal movement
-        float magnitude = sqrtf(movement.x * movement.x + movement.y * movement.y);
-        if (magnitude > 0.0f)
+        // Update enemies (they follow the player)
+        for (auto& enemy : enemies)
         {
-            movement.x /= magnitude;
-            movement.y /= magnitude;
+            if (enemy->IsAlive())
+            {
+                enemy->SetTarget(player.GetPosition());
+                enemy->Update(deltaTime);
+            }
         }
 
-        // Apply movement
-        playerPos.x += movement.x * playerSpeed * deltaTime;
-        playerPos.y += movement.y * playerSpeed * deltaTime;
+        // Collision detection: Bullets vs Enemies
+        auto& bullets = player.GetBullets();
+        for (auto& bullet : bullets)
+        {
+            if (!bullet->IsAlive()) continue;
 
-        // Keep player in bounds
-        playerPos.x = std::clamp(playerPos.x, playerRadius, SCREEN_WIDTH - playerRadius);
-        playerPos.y = std::clamp(playerPos.y, playerRadius, SCREEN_HEIGHT - playerRadius);
+            for (auto& enemy : enemies)
+            {
+                if (!enemy->IsAlive()) continue;
+
+                if (bullet->CollidesWith(*enemy))
+                {
+                    enemy->TakeDamage(bullet->GetDamage());
+                    bullet->Kill();
+
+                    if (!enemy->IsAlive())
+                    {
+                        enemiesKilled++;
+                    }
+                    break;  // Bullet can only hit one enemy
+                }
+            }
+        }
+
+        // Collision detection: Player vs Enemies (contact damage)
+        for (auto& enemy : enemies)
+        {
+            if (enemy->IsAlive() && player.IsAlive())
+            {
+                if (player.CollidesWith(*enemy))
+                {
+                    player.TakeDamage(enemy->GetDamage() * deltaTime);  // Continuous damage
+                }
+            }
+        }
+
+        // Remove dead enemies
+        enemies.erase(
+            std::remove_if(enemies.begin(), enemies.end(),
+                [](const std::unique_ptr<Enemy>& enemy) {
+                    return !enemy->IsAlive();
+                }),
+            enemies.end()
+        );
 
         // Draw
         BeginDrawing();
         ClearBackground(DARKGRAY);
 
-        // Draw player
-        DrawCircleV(playerPos, playerRadius, BLUE);
+        // Draw entities
+        player.Draw();
+        for (const auto& enemy : enemies)
+        {
+            enemy->Draw();
+        }
 
         // Draw crosshair at mouse position
         Vector2 mousePos = GetMousePosition();
@@ -62,7 +110,19 @@ int main(void)
 
         // Draw UI
         DrawFPS(10, 10);
-        DrawText("WASD to move | Mouse to aim", 10, 40, 20, LIGHTGRAY);
+        DrawText("WASD: Move | Left Click: Shoot", 10, 40, 20, LIGHTGRAY);
+
+        std::string healthText = "Health: " + std::to_string(static_cast<int>(player.GetHealth()));
+        DrawText(healthText.c_str(), 10, 70, 20, GREEN);
+
+        std::string killText = "Enemies Killed: " + std::to_string(enemiesKilled);
+        DrawText(killText.c_str(), 10, 100, 20, YELLOW);
+
+        if (!player.IsAlive())
+        {
+            DrawText("GAME OVER", SCREEN_WIDTH / 2 - 150, SCREEN_HEIGHT / 2, 60, RED);
+            DrawText("Press ESC to exit", SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 + 70, 30, WHITE);
+        }
 
         EndDrawing();
     }
