@@ -1,31 +1,28 @@
 #pragma once
 #include "Entity.h"
-#include "Bullet.h"
-#include <vector>
-#include <memory>
 
 class Player : public Entity
 {
 public:
-    Player(Vector2 position);
+    // playerNumber: 0-3 for players 1-4
+    Player(Vector2 position, int playerNumber = 0);
 
     void Update(float deltaTime) override;
     void Draw() const override;
+    void OnCollision(Entity* other) override;
 
     void HandleInput(float deltaTime);
     void Shoot(Vector2 target);
 
-    std::vector<std::unique_ptr<Bullet>>& GetBullets() { return m_bullets; }
-
     float GetHealth() const { return m_health; }
     void TakeDamage(float damage);
+    int GetPlayerNumber() const { return m_playerNumber; }
 
 private:
+    int m_playerNumber;
     float m_speed;
     float m_health;
     float m_maxHealth;
     float m_shootCooldown;
     float m_shootCooldownTimer;
-
-    std::vector<std::unique_ptr<Bullet>> m_bullets;
 };

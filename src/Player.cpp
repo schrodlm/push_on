@@ -1,9 +1,16 @@
 #include "Player.h"
+#include "EntityManager.h"
+#include "Bullet.h"
+#include "Enemy.h"
+#include "Logger.h"
 #include <cmath>
 #include <algorithm>
 
-Player::Player(Vector2 position)
-    : Entity(position, 20.0f)
+Player::Player(Vector2 position, int playerNumber)
+    : Entity(position, 20.0f,
+             1 << playerNumber,  // LAYER_PLAYER_1, LAYER_PLAYER_2, etc.
+             LAYER_ENEMY | LAYER_ENEMY_ATTACK | LAYER_NEUTRAL_HAZARD | LAYER_PICKUP)
+    , m_playerNumber(playerNumber)
     , m_speed(300.0f)
     , m_health(100.0f)
     , m_maxHealth(100.0f)
@@ -21,21 +28,6 @@ void Player::Update(float deltaTime)
     {
         m_shootCooldownTimer -= deltaTime;
     }
-
-    // Update bullets
-    for (auto& bullet : m_bullets)
-    {
-        bullet->Update(deltaTime);
-    }
-
-    // Remove dead bullets
-    m_bullets.erase(
-        std::remove_if(m_bullets.begin(), m_bullets.end(),
-            [](const std::unique_ptr<Bullet>& bullet) {
-                return !bullet->IsAlive();
-            }),
-        m_bullets.end()
-    );
 }
 
 void Player::HandleInput(float deltaTime)
@@ -101,19 +93,31 @@ void Player::Shoot(Vector2 target)
         m_position.y + direction.y * (m_radius + 10.0f)
     };
 
-    m_bullets.push_back(std::make_unique<Bullet>(spawnPos, velocity, 25.0f));
+    // Create bullet with collision layers
+    auto bullet = std::make_unique<Bullet>(
+        spawnPos, velocity, 25.0f,
+        LAYER_PLAYER_ATTACK,                    // I'm a player attack
+        LAYER_ENEMY | LAYER_ENEMY_ATTACK,       // Hit enemies and enemy projectiles
+        this                                     // Owner is this player
+    );
+
+    // Add to EntityManager
+    EntityManager::getInstance().queueEntity(std::move(bullet));
 }
 
 void Player::Draw() const
 {
     if (m_alive)
     {
-        // Draw player
-        DrawCircleV(m_position, m_radius, BLUE);
+        // Draw player with different colors per player number
+        Color playerColors[] = { BLUE, GREEN, PURPLE, ORANGE };
+        Color playerColor = playerColors[m_playerNumber % 4];
+
+        DrawCircleV(m_position, m_radius, playerColor);
 
         // Draw direction indicator (line to mouse)
         Vector2 mousePos = GetMousePosition();
-        DrawLineEx(m_position, mousePos, 2.0f, Fade(BLUE, 0.3f));
+        DrawLineEx(m_position, mousePos, 2.0f, Fade(playerColor, 0.3f));
 
         // Draw health bar above player
         float barWidth = 50.0f;
@@ -124,11 +128,42 @@ void Player::Draw() const
         DrawRectangle(barPos.x, barPos.y, barWidth, barHeight, DARKGRAY);
         DrawRectangle(barPos.x, barPos.y, barWidth * healthPercent, barHeight, GREEN);
     }
+}
 
-    // Draw bullets
-    for (const auto& bullet : m_bullets)
+void Player::OnCollision(Entity* other)
+{
+    if (!other) {
+        return;
+    }
+
+    // Handle collision with enemies
+    if (other->GetCollisionLayer() & LAYER_ENEMY)
     {
-        bullet->Draw();
+        if (auto* enemy = dynamic_cast<Enemy*>(other))
+        {
+            TakeDamage(enemy->GetDamage());
+        }
+    }
+
+    // Handle collision with enemy attacks
+    if (other->GetCollisionLayer() & LAYER_ENEMY_ATTACK)
+    {
+        if (auto* bullet = dynamic_cast<Bullet*>(other))
+        {
+            TakeDamage(bullet->GetDamage());
+        }
+    }
+
+    // Handle collision with neutral hazards
+    if (other->GetCollisionLayer() & LAYER_NEUTRAL_HAZARD)
+    {
+        // Handle hazard collision
+    }
+
+    // Handle collision with pickups
+    if (other->GetCollisionLayer() & LAYER_PICKUP)
+    {
+        // Handle pickup collection
     }
 }
 

@@ -1,11 +1,15 @@
 #pragma once
 #include "Entity.h"
+#include "Logger.h"
 
 class Bullet : public Entity
 {
 public:
-    Bullet(Vector2 position, Vector2 velocity, float damage)
-        : Entity(position, 5.0f), m_velocity(velocity), m_damage(damage) {}
+    Bullet(Vector2 position, Vector2 velocity, float damage,
+           uint32_t collisionLayer, uint32_t collisionMask,
+           Entity* owner = nullptr)
+        : Entity(position, 5.0f, collisionLayer, collisionMask, owner),
+          m_velocity(velocity), m_damage(damage) {}
 
     void Update(float deltaTime) override
     {
@@ -26,6 +30,15 @@ public:
         {
             DrawCircleV(m_position, m_radius, YELLOW);
         }
+    }
+
+    void OnCollision(Entity* other) override
+    {
+        // Don't collide with owner
+        if (other == m_owner) return;
+
+        // Bullet is destroyed on any collision
+        Kill();
     }
 
     float GetDamage() const { return m_damage; }

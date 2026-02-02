@@ -1,8 +1,12 @@
 #include "Enemy.h"
+#include "Bullet.h"
 #include <cmath>
 
-Enemy::Enemy(Vector2 position, float health)
-    : Entity(position, 15.0f)
+Enemy::Enemy(Vector2 position, float health, bool canHitOtherEnemies)
+    : Entity(position, 15.0f,
+             LAYER_ENEMY,
+             LAYER_PLAYER_ATTACK | LAYER_NEUTRAL_HAZARD |
+             (canHitOtherEnemies ? LAYER_ENEMY_ATTACK : 0))
     , m_target(position)
     , m_speed(120.0f)
     , m_health(health)
@@ -48,6 +52,37 @@ void Enemy::Draw() const
         Vector2 barPos = { m_position.x - barWidth / 2, m_position.y - m_radius - 10.0f };
         DrawRectangle(barPos.x, barPos.y, barWidth, barHeight, DARKGRAY);
         DrawRectangle(barPos.x, barPos.y, barWidth * healthPercent, barHeight, RED);
+    }
+}
+
+void Enemy::OnCollision(Entity* other)
+{
+    // Handle collision with player attacks
+    if (other->GetCollisionLayer() & LAYER_PLAYER_ATTACK)
+    {
+        if (auto* bullet = dynamic_cast<Bullet*>(other))
+        {
+            TakeDamage(bullet->GetDamage());
+        }
+    }
+
+    // Handle collision with enemy attacks (if enabled)
+    if (other->GetCollisionLayer() & LAYER_ENEMY_ATTACK)
+    {
+        // Only take damage if we're set to collide with enemy attacks
+        if (m_collisionMask & LAYER_ENEMY_ATTACK)
+        {
+            if (auto* bullet = dynamic_cast<Bullet*>(other))
+            {
+                TakeDamage(bullet->GetDamage());
+            }
+        }
+    }
+
+    // Handle collision with neutral hazards
+    if (other->GetCollisionLayer() & LAYER_NEUTRAL_HAZARD)
+    {
+        // Handle hazard collision
     }
 }
 
