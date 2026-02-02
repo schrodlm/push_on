@@ -20,4 +20,4 @@ cmake ..
 make -j$(nproc)
 
 echo ""
-echo "Build complete! Run with: ./bin/roguelike_game"
+echo "Build complete! Run with: ./bin/push_on"
