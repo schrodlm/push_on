@@ -7,17 +7,30 @@
 #include "WeaponPickup.h"
 #include <memory>
 #include <string>
+#include <cstdlib>
+#include <ctime>
 #include "Logger.h"
 
 constexpr int SCREEN_WIDTH = 1280;
 constexpr int SCREEN_HEIGHT = 720;
 constexpr int TARGET_FPS = 60;
 
+// Helper function to create random weapon
+std::unique_ptr<Weapon> CreateRandomWeapon() {
+    int choice = rand() % 2;
+    if (choice == 0) {
+        return std::make_unique<Gun>();
+    } else {
+        return std::make_unique<Sword>();
+    }
+}
+
 int main(void)
 {
     // Initialization
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Push On");
     SetTargetFPS(TARGET_FPS);
+    srand(time(nullptr));  // Seed random number generator
 
     // Get EntityManager instance
     EntityManager& manager = EntityManager::getInstance();
@@ -28,10 +41,10 @@ int main(void)
         0  // Player 1
     ));
 
-    // Create enemies
-    manager.queueEntity(std::make_unique<Enemy>(Vector2{ 200.0f, 200.0f }, 50.0f, false));
-    manager.queueEntity(std::make_unique<Enemy>(Vector2{ 1080.0f, 200.0f }, 50.0f, false));
-    manager.queueEntity(std::make_unique<Enemy>(Vector2{ 640.0f, 500.0f }, 50.0f, false));
+    // Create first enemy with random weapon
+    auto firstEnemy = std::make_unique<Enemy>(Vector2{ 200.0f, 200.0f }, 100.0f, false);
+    firstEnemy->EquipWeapon(CreateRandomWeapon());
+    manager.queueEntity(std::move(firstEnemy));
 
     // Spawn test weapon pickup
     manager.queueEntity(std::make_unique<WeaponPickup>(
@@ -45,10 +58,23 @@ int main(void)
         std::make_unique<Sword>()
     ));
 
+    // Track if we need to spawn a new enemy
+    bool hasActiveEnemy = true;
+
     // Main game loop
     while (!WindowShouldClose())
     {
         float deltaTime = GetFrameTime();
+
+        // Check if current enemy is dead and spawn new one
+        if (!hasActiveEnemy) {
+            Vector2 spawnPos = { 200.0f, 200.0f };
+            auto newEnemy = std::make_unique<Enemy>(spawnPos, 100.0f, false);
+            newEnemy->EquipWeapon(CreateRandomWeapon());
+            manager.queueEntity(std::move(newEnemy));
+            hasActiveEnemy = true;
+            Logger::Info("Spawned new enemy with random weapon");
+        }
 
         // Update enemy AI - enemies chase closest player (clean, no casting!)
         for (Enemy* enemy : manager.getEnemies()) {
@@ -64,6 +90,9 @@ int main(void)
 
         // Remove dead entities
         manager.deleteDeadEntities();
+
+        // Check if enemy is still alive
+        hasActiveEnemy = !manager.getEnemies().empty();
 
         // Draw
         BeginDrawing();
