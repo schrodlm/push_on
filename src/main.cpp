@@ -3,6 +3,7 @@
 #include "Player.h"
 #include "Enemy.h"
 #include "Gun.h"
+#include "Sword.h"
 #include "WeaponPickup.h"
 #include <memory>
 #include <string>
@@ -36,6 +37,12 @@ int main(void)
     manager.queueEntity(std::make_unique<WeaponPickup>(
         Vector2{ SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f - 100.0f },
         std::make_unique<Gun>()
+    ));
+
+    // Spawn sword pickup
+    manager.queueEntity(std::make_unique<WeaponPickup>(
+        Vector2{ SCREEN_WIDTH / 2.0f + 150.0f, SCREEN_HEIGHT / 2.0f - 100.0f },
+        std::make_unique<Sword>()
     ));
 
     // Main game loop
