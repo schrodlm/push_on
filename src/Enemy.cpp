@@ -1,5 +1,6 @@
 #include "Enemy.h"
 #include "Bullet.h"
+#include "Weapon.h"
 #include <cmath>
 
 Enemy::Enemy(Vector2 position, float health, bool canHitOtherEnemies)
@@ -35,6 +36,16 @@ void Enemy::Update(float deltaTime)
         m_position.x += direction.x * m_speed * deltaTime;
         m_position.y += direction.y * m_speed * deltaTime;
     }
+
+    // Update weapon
+    if (m_weapon) {
+        m_weapon->Update(deltaTime);
+
+        // Attack if in range
+        if (magnitude < 200.0f && m_weapon->CanFire()) {
+            m_weapon->Fire(this, m_target);
+        }
+    }
 }
 
 void Enemy::Draw() const
@@ -43,6 +54,22 @@ void Enemy::Draw() const
     {
         // Draw enemy
         DrawCircleV(m_position, m_radius, RED);
+
+        // Calculate aim direction toward target
+        Vector2 aimDir = {
+            m_target.x - m_position.x,
+            m_target.y - m_position.y
+        };
+        float magnitude = std::sqrt(aimDir.x * aimDir.x + aimDir.y * aimDir.y);
+        if (magnitude > 0.0f) {
+            aimDir.x /= magnitude;
+            aimDir.y /= magnitude;
+        }
+
+        // Draw weapon if equipped
+        if (m_weapon) {
+            m_weapon->Draw(m_position, aimDir);
+        }
 
         // Draw health bar
         float barWidth = 40.0f;
