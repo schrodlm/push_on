@@ -3,12 +3,12 @@
 #include <string>
 
 // Forward declarations
-class Player;
+class Entity;
 
 /**
  * Base weapon class
  * Weapons are behavior classes that create projectile entities when fired.
- * When equipped, they are part of the player, not separate world objects.
+ * When equipped, they are part of any entity, not separate world objects.
  */
 class Weapon {
 public:
@@ -16,10 +16,10 @@ public:
 
     /**
      * Fire the weapon, creating projectile entities
-     * @param owner The player firing the weapon
+     * @param owner The entity firing the weapon
      * @param target The target position to shoot at
      */
-    virtual void Fire(Player* owner, Vector2 target) = 0;
+    virtual void Fire(Entity* owner, Vector2 target) = 0;
 
     /**
      * Update weapon state (cooldowns, animations, etc)

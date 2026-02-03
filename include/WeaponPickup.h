@@ -3,6 +3,9 @@
 #include "Weapon.h"
 #include <memory>
 
+// Forward declaration
+class Player;
+
 /**
  * WeaponPickup - Entity for weapons in the world
  */

@@ -1,5 +1,5 @@
 #include "Gun.h"
-#include "Player.h"
+#include "Entity.h"
 #include "GunBullet.h"
 #include "EntityManager.h"
 #include "Logger.h"
@@ -11,7 +11,7 @@ Gun::Gun()
       m_bulletSpeed(800.0f) {
 }
 
-void Gun::Fire(Player* owner, Vector2 target) {
+void Gun::Fire(Entity* owner, Vector2 target) {
     Logger::Debug("Gun::Fire");
 
     Vector2 ownerPos = owner->GetPosition();
