@@ -14,8 +14,8 @@ Player::Player(Vector2 position, int playerNumber)
     , m_speed(300.0f)
     , m_health(100.0f)
     , m_maxHealth(100.0f)
-    , m_shootCooldown(0.15f)  // 150ms between shots
-    , m_shootCooldownTimer(0.0f)
+    , m_equippedWeapon(nullptr)
+    , m_currentWeaponIndex(-1)
 {
 }
 
@@ -23,10 +23,9 @@ void Player::Update(float deltaTime)
 {
     HandleInput(deltaTime);
 
-    // Update shoot cooldown
-    if (m_shootCooldownTimer > 0.0f)
-    {
-        m_shootCooldownTimer -= deltaTime;
+    // Update weapon
+    if (m_equippedWeapon) {
+        m_equippedWeapon->Update(deltaTime);
     }
 }
 
@@ -56,53 +55,23 @@ void Player::HandleInput(float deltaTime)
     m_position.y = std::clamp(m_position.y, m_radius, 720.0f - m_radius);
 
     // Shooting
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && m_shootCooldownTimer <= 0.0f)
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
     {
         Vector2 mousePos = GetMousePosition();
         Shoot(mousePos);
-        m_shootCooldownTimer = m_shootCooldown;
     }
 }
 
 void Player::Shoot(Vector2 target)
 {
-    // Calculate direction to target
-    Vector2 direction = {
-        target.x - m_position.x,
-        target.y - m_position.y
-    };
-
-    // Normalize
-    float magnitude = std::sqrt(direction.x * direction.x + direction.y * direction.y);
-    if (magnitude > 0.0f)
-    {
-        direction.x /= magnitude;
-        direction.y /= magnitude;
+    if (!m_equippedWeapon) {
+        Logger::Debug("Player has no weapon equipped");
+        return;
     }
 
-    // Bullet velocity
-    float bulletSpeed = 800.0f;
-    Vector2 velocity = {
-        direction.x * bulletSpeed,
-        direction.y * bulletSpeed
-    };
-
-    // Spawn bullet slightly ahead of player
-    Vector2 spawnPos = {
-        m_position.x + direction.x * (m_radius + 10.0f),
-        m_position.y + direction.y * (m_radius + 10.0f)
-    };
-
-    // Create bullet with collision layers
-    auto bullet = std::make_unique<Bullet>(
-        spawnPos, velocity, 25.0f,
-        LAYER_PLAYER_ATTACK,                    // I'm a player attack
-        LAYER_ENEMY | LAYER_ENEMY_ATTACK,       // Hit enemies and enemy projectiles
-        this                                     // Owner is this player
-    );
-
-    // Add to EntityManager
-    EntityManager::getInstance().queueEntity(std::move(bullet));
+    if (m_equippedWeapon->CanFire()) {
+        m_equippedWeapon->Fire(this, target);
+    }
 }
 
 void Player::Draw() const
@@ -115,8 +84,24 @@ void Player::Draw() const
 
         DrawCircleV(m_position, m_radius, playerColor);
 
-        // Draw direction indicator (line to mouse)
+        // Calculate aim direction
         Vector2 mousePos = GetMousePosition();
+        Vector2 aimDir = {
+            mousePos.x - m_position.x,
+            mousePos.y - m_position.y
+        };
+        float magnitude = std::sqrt(aimDir.x * aimDir.x + aimDir.y * aimDir.y);
+        if (magnitude > 0.0f) {
+            aimDir.x /= magnitude;
+            aimDir.y /= magnitude;
+        }
+
+        // Draw weapon if equipped
+        if (m_equippedWeapon) {
+            m_equippedWeapon->Draw(m_position, aimDir);
+        }
+
+        // Draw direction indicator
         DrawLineEx(m_position, mousePos, 2.0f, Fade(playerColor, 0.3f));
 
         // Draw health bar above player
@@ -165,6 +150,38 @@ void Player::OnCollision(Entity* other)
     {
         // Handle pickup collection
     }
+}
+
+void Player::EquipWeapon(std::unique_ptr<Weapon> weapon)
+{
+    Logger::Info("Player equipping weapon: ", weapon ? weapon->GetName() : "none");
+    m_equippedWeapon = std::move(weapon);
+}
+
+void Player::AddToInventory(std::unique_ptr<Weapon> weapon)
+{
+    if (!weapon) return;
+
+    Logger::Info("Player adding to inventory: ", weapon->GetName());
+
+    // If no weapon equipped, equip this one
+    if (!m_equippedWeapon) {
+        EquipWeapon(std::move(weapon));
+        m_currentWeaponIndex = 0;
+    } else {
+        m_inventory.push_back(std::move(weapon));
+    }
+}
+
+void Player::SwitchWeapon(int index)
+{
+    if (index < 0 || index >= static_cast<int>(m_inventory.size())) return;
+
+    // Swap current weapon with inventory
+    std::swap(m_equippedWeapon, m_inventory[index]);
+    m_currentWeaponIndex = index;
+
+    Logger::Info("Switched to weapon: ", m_equippedWeapon->GetName());
 }
 
 void Player::TakeDamage(float damage)

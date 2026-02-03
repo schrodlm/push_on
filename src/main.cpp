@@ -2,6 +2,8 @@
 #include "raylib.h"
 #include "Player.h"
 #include "Enemy.h"
+#include "Gun.h"
+#include "WeaponPickup.h"
 #include <memory>
 #include <string>
 #include "Logger.h"
@@ -29,6 +31,12 @@ int main(void)
     manager.queueEntity(std::make_unique<Enemy>(Vector2{ 200.0f, 200.0f }, 50.0f, false));
     manager.queueEntity(std::make_unique<Enemy>(Vector2{ 1080.0f, 200.0f }, 50.0f, false));
     manager.queueEntity(std::make_unique<Enemy>(Vector2{ 640.0f, 500.0f }, 50.0f, false));
+
+    // Spawn test weapon pickup
+    manager.queueEntity(std::make_unique<WeaponPickup>(
+        Vector2{ SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f - 100.0f },
+        std::make_unique<Gun>()
+    ));
 
     // Main game loop
     while (!WindowShouldClose())
