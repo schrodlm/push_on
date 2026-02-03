@@ -10,8 +10,8 @@ public:
     void Update(float deltaTime) override;
     void Draw() const override;
     void OnCollision(Entity* other) override;
+    void SetTarget(Vector2 target) override { m_target = target; }
 
-    void SetTarget(Vector2 target) { m_target = target; }
     void TakeDamage(float damage);
 
     float GetHealth() const { return m_health; }

@@ -17,6 +17,9 @@ public:
     std::unique_ptr<Weapon> TakeWeapon();
 
 private:
+    void PickupWeapon(Player* player);
+
     std::unique_ptr<Weapon> m_weapon;
     float m_bobTime;  // For floating animation
+    Player* m_nearbyPlayer;  // Track nearby player for 'E' prompt
 };

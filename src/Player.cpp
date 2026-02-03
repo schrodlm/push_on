@@ -2,6 +2,7 @@
 #include "EntityManager.h"
 #include "Bullet.h"
 #include "Enemy.h"
+#include "Weapon.h"
 #include "Logger.h"
 #include <cmath>
 #include <algorithm>
@@ -14,8 +15,6 @@ Player::Player(Vector2 position, int playerNumber)
     , m_speed(300.0f)
     , m_health(100.0f)
     , m_maxHealth(100.0f)
-    , m_equippedWeapon(nullptr)
-    , m_currentWeaponIndex(-1)
 {
 }
 
@@ -24,8 +23,8 @@ void Player::Update(float deltaTime)
     HandleInput(deltaTime);
 
     // Update weapon
-    if (m_equippedWeapon) {
-        m_equippedWeapon->Update(deltaTime);
+    if (m_weapon) {
+        m_weapon->Update(deltaTime);
     }
 }
 
@@ -64,13 +63,13 @@ void Player::HandleInput(float deltaTime)
 
 void Player::Shoot(Vector2 target)
 {
-    if (!m_equippedWeapon) {
+    if (!m_weapon) {
         Logger::Debug("Player has no weapon equipped");
         return;
     }
 
-    if (m_equippedWeapon->CanFire()) {
-        m_equippedWeapon->Fire(this, target);
+    if (m_weapon->CanFire()) {
+        m_weapon->Fire(this, target);
     }
 }
 
@@ -97,8 +96,8 @@ void Player::Draw() const
         }
 
         // Draw weapon if equipped
-        if (m_equippedWeapon) {
-            m_equippedWeapon->Draw(m_position, aimDir);
+        if (m_weapon) {
+            m_weapon->Draw(m_position, aimDir);
         }
 
         // Draw direction indicator
@@ -150,38 +149,6 @@ void Player::OnCollision(Entity* other)
     {
         // Handle pickup collection
     }
-}
-
-void Player::EquipWeapon(std::unique_ptr<Weapon> weapon)
-{
-    Logger::Info("Player equipping weapon: ", weapon ? weapon->GetName() : "none");
-    m_equippedWeapon = std::move(weapon);
-}
-
-void Player::AddToInventory(std::unique_ptr<Weapon> weapon)
-{
-    if (!weapon) return;
-
-    Logger::Info("Player adding to inventory: ", weapon->GetName());
-
-    // If no weapon equipped, equip this one
-    if (!m_equippedWeapon) {
-        EquipWeapon(std::move(weapon));
-        m_currentWeaponIndex = 0;
-    } else {
-        m_inventory.push_back(std::move(weapon));
-    }
-}
-
-void Player::SwitchWeapon(int index)
-{
-    if (index < 0 || index >= static_cast<int>(m_inventory.size())) return;
-
-    // Swap current weapon with inventory
-    std::swap(m_equippedWeapon, m_inventory[index]);
-    m_currentWeaponIndex = index;
-
-    Logger::Info("Switched to weapon: ", m_equippedWeapon->GetName());
 }
 
 void Player::TakeDamage(float damage)

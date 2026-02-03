@@ -2,18 +2,19 @@
 #include "raylib.h"
 #include "CollisionSystem.h"
 #include <cstdint>
+#include <memory>
+
+// Forward declarations
+class Weapon;
 
 class Entity
 {
 public:
     Entity(Vector2 position, float radius,
            uint32_t collisionLayer, uint32_t collisionMask,
-           Entity* owner = nullptr)
-        : m_position(position), m_radius(radius), m_alive(true),
-          m_collisionLayer(collisionLayer), m_collisionMask(collisionMask),
-          m_owner(owner) {}
+           Entity* owner = nullptr);
 
-    virtual ~Entity() = default;
+    virtual ~Entity();
 
     virtual void Update(float deltaTime) = 0;
     virtual void Draw() const = 0;
@@ -31,6 +32,13 @@ public:
 
     void Kill() { m_alive = false; }
     void SetOwner(Entity* owner) { m_owner = owner; }
+
+    // Weapon management (optional component)
+    void EquipWeapon(std::unique_ptr<Weapon> weapon);
+    std::unique_ptr<Weapon> DropWeapon();
+    Weapon* GetWeapon() const { return m_weapon.get(); }
+    bool HasWeapon() const { return m_weapon != nullptr; }
+    virtual void SetTarget(Vector2 target) {}  // For AI targeting
 
     /**
      * Check if this entity should collide with another based on layer/mask filtering.
@@ -65,4 +73,7 @@ protected:
     uint32_t m_collisionLayer;  // What layer(s) this entity is on
     uint32_t m_collisionMask;   // What layer(s) this entity collides with
     Entity* m_owner;            // Entity that created/owns this (e.g., who shot the bullet)
+
+    // Optional weapon component (nullptr for entities that don't use weapons)
+    std::unique_ptr<Weapon> m_weapon;
 };
