@@ -23,8 +23,10 @@ public:
 
     /**
      * Update weapon state (cooldowns, animations, etc)
+     * @param owner The entity that owns this weapon (needed for melee hit detection, etc)
+     * @param deltaTime Time since last frame
      */
-    virtual void Update(float deltaTime);
+    virtual void Update(Entity* owner, float deltaTime);
 
     /**
      * Draw weapon at player position

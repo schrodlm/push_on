@@ -39,7 +39,7 @@ void Enemy::Update(float deltaTime)
 
     // Update weapon
     if (m_weapon) {
-        m_weapon->Update(deltaTime);
+        m_weapon->Update(this, deltaTime);
 
         // Attack if in range
         if (magnitude < 200.0f && m_weapon->CanFire()) {
@@ -84,32 +84,25 @@ void Enemy::Draw() const
 
 void Enemy::OnCollision(Entity* other)
 {
-    // Handle collision with player attacks
+    // Handle collision with player attacks (projectiles, melee swings, etc)
     if (other->GetCollisionLayer() & LAYER_PLAYER_ATTACK)
     {
-        if (auto* bullet = dynamic_cast<Bullet*>(other))
-        {
-            TakeDamage(bullet->GetDamage());
-        }
+        TakeDamage(other->GetDamage());
     }
 
-    // Handle collision with enemy attacks (if enabled)
+    // Handle collision with enemy attacks (if enabled via collision mask)
     if (other->GetCollisionLayer() & LAYER_ENEMY_ATTACK)
     {
-        // Only take damage if we're set to collide with enemy attacks
         if (m_collisionMask & LAYER_ENEMY_ATTACK)
         {
-            if (auto* bullet = dynamic_cast<Bullet*>(other))
-            {
-                TakeDamage(bullet->GetDamage());
-            }
+            TakeDamage(other->GetDamage());
         }
     }
 
     // Handle collision with neutral hazards
     if (other->GetCollisionLayer() & LAYER_NEUTRAL_HAZARD)
     {
-        // Handle hazard collision
+        TakeDamage(other->GetDamage());
     }
 }
 

@@ -30,6 +30,12 @@ public:
     uint32_t GetCollisionMask() const { return m_collisionMask; }
     Entity* GetOwner() const { return m_owner; }
 
+    // Damage interface - override in entities that deal damage
+    virtual float GetDamage() const { return 0.0f; }
+
+    // Damage handling - override in entities that can take damage
+    virtual void TakeDamage(float damage) {}
+
     void Kill() { m_alive = false; }
     void SetOwner(Entity* owner) { m_owner = owner; }
 

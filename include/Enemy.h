@@ -12,10 +12,10 @@ public:
     void OnCollision(Entity* other) override;
     void SetTarget(Vector2 target) override { m_target = target; }
 
-    void TakeDamage(float damage);
+    void TakeDamage(float damage) override;
 
     float GetHealth() const { return m_health; }
-    float GetDamage() const { return m_contactDamage; }
+    float GetDamage() const override { return m_contactDamage; }
 
 private:
     Vector2 m_target;

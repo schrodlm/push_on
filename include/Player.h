@@ -15,7 +15,7 @@ public:
     void Shoot(Vector2 target);
 
     float GetHealth() const { return m_health; }
-    void TakeDamage(float damage);
+    void TakeDamage(float damage) override;
     int GetPlayerNumber() const { return m_playerNumber; }
 
 private:

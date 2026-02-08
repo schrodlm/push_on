@@ -1,7 +1,5 @@
 #include "Player.h"
 #include "EntityManager.h"
-#include "Bullet.h"
-#include "Enemy.h"
 #include "Weapon.h"
 #include "Logger.h"
 #include <cmath>
@@ -24,7 +22,7 @@ void Player::Update(float deltaTime)
 
     // Update weapon
     if (m_weapon) {
-        m_weapon->Update(deltaTime);
+        m_weapon->Update(this, deltaTime);
     }
 }
 
@@ -120,28 +118,22 @@ void Player::OnCollision(Entity* other)
         return;
     }
 
-    // Handle collision with enemies
+    // Handle collision with enemies (contact damage)
     if (other->GetCollisionLayer() & LAYER_ENEMY)
     {
-        if (auto* enemy = dynamic_cast<Enemy*>(other))
-        {
-            TakeDamage(enemy->GetDamage());
-        }
+        TakeDamage(other->GetDamage());
     }
 
-    // Handle collision with enemy attacks
+    // Handle collision with enemy attacks (projectiles, melee swings, etc)
     if (other->GetCollisionLayer() & LAYER_ENEMY_ATTACK)
     {
-        if (auto* bullet = dynamic_cast<Bullet*>(other))
-        {
-            TakeDamage(bullet->GetDamage());
-        }
+        TakeDamage(other->GetDamage());
     }
 
     // Handle collision with neutral hazards
     if (other->GetCollisionLayer() & LAYER_NEUTRAL_HAZARD)
     {
-        // Handle hazard collision
+        TakeDamage(other->GetDamage());
     }
 
     // Handle collision with pickups

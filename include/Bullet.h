@@ -41,7 +41,7 @@ public:
         Kill();
     }
 
-    float GetDamage() const { return m_damage; }
+    float GetDamage() const override { return m_damage; }
 
 private:
     Vector2 m_velocity;
