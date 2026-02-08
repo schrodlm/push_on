@@ -1,26 +1,91 @@
 #include "Sword.h"
 #include "EntityManager.h"
-#include "Enemy.h"
+#include "SwordSwing.h"
 #include "Logger.h"
 #include <cmath>
+#include <raylib.h>
 
 Sword::Sword()
-    : Weapon("Sword", 0.5f),  // 500ms cooldown
-      m_damage(40.0f),
-      m_range(60.0f),
-      m_swingDuration(0.3f),
+    : Weapon("Sword", 0.1f),  // Short cooldown for combo responsiveness
+      m_currentCombo(ComboStage::None),
+      m_comboResetTimer(0.0f),
+      m_comboWindow(1.0f),  // 1 second to continue combo
       m_swingTimer(0.0f),
       m_isSwinging(false),
       m_swingDirection({0.0f, 0.0f}) {
 }
 
-void Sword::Fire(Entity* owner, Vector2 target) {
-    if (!CanFire() || !owner) return;
+Sword::SwingConfig Sword::GetSwingConfig(ComboStage stage) const {
+    SwingConfig config;
 
-    Logger::Debug("Sword::Fire");
+    switch (stage) {
+        case ComboStage::Swing1_LeftRight:
+            config.duration = 0.35f;
+            config.startAngleOffset = -90.0f;  // Left
+            config.endAngleOffset = 90.0f;     // Right
+            config.damage = 30.0f;
+            config.range = 65.0f;
+            break;
+
+        case ComboStage::Swing2_RightLeft:
+            config.duration = 0.3f;
+            config.startAngleOffset = 90.0f;   // Right
+            config.endAngleOffset = -90.0f;    // Left
+            config.damage = 35.0f;
+            config.range = 65.0f;
+            break;
+
+        case ComboStage::Swing3_Overhead:
+            config.duration = 0.5f;
+            config.startAngleOffset = -120.0f; // Up and back
+            config.endAngleOffset = 60.0f;     // Down in front
+            config.damage = 60.0f;             // Heavy finisher
+            config.range = 70.0f;
+            break;
+
+        default:
+            config.duration = 0.35f;
+            config.startAngleOffset = -90.0f;
+            config.endAngleOffset = 90.0f;
+            config.damage = 30.0f;
+            config.range = 65.0f;
+            break;
+    }
+
+    return config;
+}
+
+void Sword::Fire(Entity* owner, Vector2 target) {
+    if (!CanFire() || !owner || m_isSwinging) return;
+
+    // Advance combo or reset
+    if (m_comboResetTimer > 0.0f) {
+        // Continue combo
+        switch (m_currentCombo) {
+            case ComboStage::None:
+            case ComboStage::Swing3_Overhead:
+                m_currentCombo = ComboStage::Swing1_LeftRight;
+                break;
+            case ComboStage::Swing1_LeftRight:
+                m_currentCombo = ComboStage::Swing2_RightLeft;
+                break;
+            case ComboStage::Swing2_RightLeft:
+                m_currentCombo = ComboStage::Swing3_Overhead;
+                break;
+        }
+    } else {
+        // Start fresh combo
+        m_currentCombo = ComboStage::Swing1_LeftRight;
+    }
+
+    Logger::Debug("Sword::Fire - Combo stage: ", static_cast<int>(m_currentCombo));
+
+    // Setup swing
     m_isSwinging = true;
-    m_swingTimer = m_swingDuration;
+    m_currentSwing = GetSwingConfig(m_currentCombo);
+    m_swingTimer = m_currentSwing.duration;
     m_cooldownTimer = m_cooldown;
+    m_comboResetTimer = m_comboWindow;
 
     // Calculate swing direction
     Vector2 ownerPos = owner->GetPosition();
@@ -35,37 +100,54 @@ void Sword::Fire(Entity* owner, Vector2 target) {
         m_swingDirection.y /= magnitude;
     }
 
-    // Check for hits in melee range
-    Vector2 hitCenter = {
-        ownerPos.x + m_swingDirection.x * m_range * 0.5f,
-        ownerPos.y + m_swingDirection.y * m_range * 0.5f
-    };
+    // Calculate swing angles
+    float baseAngle = std::atan2(m_swingDirection.y, m_swingDirection.x) * RAD2DEG;
+    float startAngle = baseAngle + m_currentSwing.startAngleOffset;
+    float endAngle = baseAngle + m_currentSwing.endAngleOffset;
 
-    // Hit all enemies in range
-    for (auto* enemy : EntityManager::getInstance().getEnemies()) {
-        if (!enemy || !enemy->IsAlive()) continue;
+    // Determine swing type and color based on combo
+    SwordSwing::SwingType swingType;
+    Color swingColor;
 
-        Vector2 enemyPos = enemy->GetPosition();
-        float dx = enemyPos.x - hitCenter.x;
-        float dy = enemyPos.y - hitCenter.y;
-        float distSquared = dx * dx + dy * dy;
-        float hitRadius = m_range * 0.7f; // Generous hit area
-
-        if (distSquared < hitRadius * hitRadius) {
-            // Check if enemy is roughly in front of swing direction
-            float dotProduct = dx * m_swingDirection.x + dy * m_swingDirection.y;
-            if (dotProduct > 0) {
-                Logger::Debug("Sword hit enemy for ", m_damage, " damage");
-                enemy->TakeDamage(m_damage);
-            }
-        }
+    switch (m_currentCombo) {
+        case ComboStage::Swing1_LeftRight:
+            swingType = SwordSwing::SwingType::Horizontal;
+            swingColor = WHITE;
+            break;
+        case ComboStage::Swing2_RightLeft:
+            swingType = SwordSwing::SwingType::Horizontal;
+            swingColor = SKYBLUE;
+            break;
+        case ComboStage::Swing3_Overhead:
+            swingType = SwordSwing::SwingType::Overhead;
+            swingColor = ORANGE;
+            break;
+        default:
+            swingType = SwordSwing::SwingType::Horizontal;
+            swingColor = GRAY;
+            break;
     }
+
+    // Create SwordSwing entity - it handles its own drawing and collision
+    auto swing = std::make_unique<SwordSwing>(owner, ownerPos, m_currentSwing.damage,
+                                                m_currentSwing.range, m_currentSwing.duration,
+                                                startAngle, endAngle, swingType, swingColor);
+    EntityManager::getInstance().queueEntity(std::move(swing));
 }
 
-void Sword::Update(float deltaTime) {
+void Sword::Update(Entity* owner, float deltaTime) {
     // Call base class to update cooldown
-    Weapon::Update(deltaTime);
+    Weapon::Update(owner, deltaTime);
 
+    // Update combo reset timer
+    if (m_comboResetTimer > 0.0f) {
+        m_comboResetTimer -= deltaTime;
+        if (m_comboResetTimer <= 0.0f) {
+            m_currentCombo = ComboStage::None;
+        }
+    }
+
+    // Update swing timer
     if (m_swingTimer > 0.0f) {
         m_swingTimer -= deltaTime;
         if (m_swingTimer <= 0.0f) {
@@ -75,26 +157,22 @@ void Sword::Update(float deltaTime) {
 }
 
 void Sword::Draw(Vector2 ownerPos, Vector2 aimDir) const {
-    if (m_isSwinging) {
-        // Draw swing arc
-        float swingProgress = 1.0f - (m_swingTimer / m_swingDuration);
-        float baseAngle = std::atan2(m_swingDirection.y, m_swingDirection.x) * RAD2DEG;
-        float swingAngle = -60.0f + swingProgress * 120.0f; // -60 to +60 degrees
-        float currentAngle = baseAngle + swingAngle;
-
-        Vector2 swordEnd = {
-            ownerPos.x + std::cos(currentAngle * DEG2RAD) * m_range,
-            ownerPos.y + std::sin(currentAngle * DEG2RAD) * m_range
-        };
-
-        DrawLineEx(ownerPos, swordEnd, 4.0f, Fade(WHITE, 0.8f));
-        DrawCircleV(swordEnd, 6.0f, LIGHTGRAY);
-    } else {
-        // Draw sheathed sword
+    // Only draw sheathed sword when not swinging
+    // Active swings are drawn by SwordSwing entities
+    if (!m_isSwinging) {
         Vector2 swordEnd = {
             ownerPos.x + aimDir.x * 25.0f,
             ownerPos.y + aimDir.y * 25.0f
         };
-        DrawLineEx(ownerPos, swordEnd, 3.0f, GRAY);
+
+        Color swordColor = GRAY;
+
+        // Show combo readiness with pulsing yellow glow
+        if (m_comboResetTimer > 0.0f) {
+            float pulseAlpha = 0.5f + 0.5f * std::sin(GetTime() * 10.0f);
+            swordColor = ColorAlpha(YELLOW, pulseAlpha);
+        }
+
+        DrawLineEx(ownerPos, swordEnd, 3.0f, swordColor);
     }
 }
