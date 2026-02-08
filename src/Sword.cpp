@@ -1,6 +1,7 @@
 #include "Sword.h"
 #include "EntityManager.h"
 #include "SwordSwing.h"
+#include "SwordSlam.h"
 #include "Logger.h"
 #include <cmath>
 #include <raylib.h>
@@ -100,39 +101,26 @@ void Sword::Fire(Entity* owner, Vector2 target) {
         m_swingDirection.y /= magnitude;
     }
 
-    // Calculate swing angles
-    float baseAngle = std::atan2(m_swingDirection.y, m_swingDirection.x) * RAD2DEG;
-    float startAngle = baseAngle + m_currentSwing.startAngleOffset;
-    float endAngle = baseAngle + m_currentSwing.endAngleOffset;
+    // Third combo is a slam, not a swing
+    if (m_currentCombo == ComboStage::Swing3_Overhead) {
+        // Create overhead slam attack in the direction player is aiming
+        auto slam = std::make_unique<SwordSlam>(owner, ownerPos, m_swingDirection,
+                                                 m_currentSwing.damage, m_currentSwing.range,
+                                                 m_currentSwing.duration);
+        EntityManager::getInstance().queueEntity(std::move(slam));
+    } else {
+        // Create horizontal swing for first two combos
+        float baseAngle = std::atan2(m_swingDirection.y, m_swingDirection.x) * RAD2DEG;
+        float startAngle = baseAngle + m_currentSwing.startAngleOffset;
+        float endAngle = baseAngle + m_currentSwing.endAngleOffset;
 
-    // Determine swing type and color based on combo
-    SwordSwing::SwingType swingType;
-    Color swingColor;
+        Color swingColor = (m_currentCombo == ComboStage::Swing2_RightLeft) ? SKYBLUE : WHITE;
 
-    switch (m_currentCombo) {
-        case ComboStage::Swing1_LeftRight:
-            swingType = SwordSwing::SwingType::Horizontal;
-            swingColor = WHITE;
-            break;
-        case ComboStage::Swing2_RightLeft:
-            swingType = SwordSwing::SwingType::Horizontal;
-            swingColor = SKYBLUE;
-            break;
-        case ComboStage::Swing3_Overhead:
-            swingType = SwordSwing::SwingType::Overhead;
-            swingColor = ORANGE;
-            break;
-        default:
-            swingType = SwordSwing::SwingType::Horizontal;
-            swingColor = GRAY;
-            break;
+        auto swing = std::make_unique<SwordSwing>(owner, ownerPos, m_currentSwing.damage,
+                                                    m_currentSwing.range, m_currentSwing.duration,
+                                                    startAngle, endAngle, swingColor);
+        EntityManager::getInstance().queueEntity(std::move(swing));
     }
-
-    // Create SwordSwing entity - it handles its own drawing and collision
-    auto swing = std::make_unique<SwordSwing>(owner, ownerPos, m_currentSwing.damage,
-                                                m_currentSwing.range, m_currentSwing.duration,
-                                                startAngle, endAngle, swingType, swingColor);
-    EntityManager::getInstance().queueEntity(std::move(swing));
 }
 
 void Sword::Update(Entity* owner, float deltaTime) {

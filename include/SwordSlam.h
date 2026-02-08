@@ -4,19 +4,17 @@
 #include "raylib.h"
 
 /**
- * SwordSwing - Temporary entity representing an active sword swing arc
- * Handles its own animation, drawing, and collision detection
+ * SwordSlam - Overhead slam attack that crashes down vertically
+ * Different from horizontal swings - this is a ground pound
  */
-class SwordSwing : public Entity {
+class SwordSlam : public Entity {
 public:
     struct TrailPoint {
         Vector2 position;
         float lifetime;
     };
 
-    SwordSwing(Entity* owner, Vector2 position, float damage, float range,
-               float duration, float startAngle, float endAngle,
-               Color swingColor = WHITE);
+    SwordSlam(Entity* owner, Vector2 position, Vector2 direction, float damage, float range, float duration);
 
     void Update(float deltaTime) override;
     void Draw() const override;
@@ -29,17 +27,18 @@ private:
     float m_range;
     float m_duration;
     float m_lifetime;
-    float m_startAngle;  // In degrees
-    float m_endAngle;    // In degrees
-    Color m_color;
+
+    Vector2 m_direction;     // Direction of the slam (normalized)
+    Vector2 m_windupOffset;  // Where the sword is raised during windup
+    Vector2 m_impactPoint;   // Where the sword will crash
 
     // Visual effects
     std::vector<TrailPoint> m_trailPoints;
     float m_trailSpawnTimer;
+    bool m_hasImpacted;
 
     // Helper methods
     float GetProgress() const;
-    float ApplyEasing(float t) const;
-    float GetCurrentAngle() const;
+    Vector2 GetCurrentSwordPosition() const;
     void UpdateTrail(float deltaTime);
 };

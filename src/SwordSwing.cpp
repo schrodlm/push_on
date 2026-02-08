@@ -2,7 +2,7 @@
 #include <cmath>
 
 SwordSwing::SwordSwing(Entity* owner, Vector2 position, float damage, float range,
-                       float duration, float startAngle, float endAngle, SwingType type,
+                       float duration, float startAngle, float endAngle,
                        Color swingColor)
     : Entity(position, range,  // Use range as radius for collision
              owner->GetCollisionLayer() == LAYER_ENEMY ? LAYER_ENEMY_ATTACK : LAYER_PLAYER_ATTACK,
@@ -14,7 +14,6 @@ SwordSwing::SwordSwing(Entity* owner, Vector2 position, float damage, float rang
     , m_lifetime(0.0f)
     , m_startAngle(startAngle)
     , m_endAngle(endAngle)
-    , m_type(type)
     , m_color(swingColor)
     , m_trailSpawnTimer(0.0f) {
 }
@@ -25,25 +24,12 @@ float SwordSwing::GetProgress() const {
 }
 
 float SwordSwing::ApplyEasing(float t) const {
-    if (m_type == SwingType::Overhead) {
-        // Overhead: Slow windup (70% of time), then FAST crash down
-        if (t < 0.7f) {
-            // Slow ease-in for anticipation
-            float normalized = t / 0.7f;
-            return normalized * normalized * 0.3f;  // Only travel 30% during windup
-        } else {
-            // Fast ease-out for the slam
-            float normalized = (t - 0.7f) / 0.3f;
-            return 0.3f + (1.0f - std::pow(1.0f - normalized, 4.0f)) * 0.7f;
-        }
+    // Smooth ease-in-out cubic for horizontal swings
+    if (t < 0.5f) {
+        return 4.0f * t * t * t;
     } else {
-        // Horizontal swings: Smooth ease-in-out cubic
-        if (t < 0.5f) {
-            return 4.0f * t * t * t;
-        } else {
-            float f = 2.0f * t - 2.0f;
-            return 0.5f * f * f * f + 1.0f;
-        }
+        float f = 2.0f * t - 2.0f;
+        return 0.5f * f * f * f + 1.0f;
     }
 }
 
@@ -93,11 +79,6 @@ void SwordSwing::Update(float deltaTime) {
 
     // Update visual trail
     UpdateTrail(deltaTime);
-
-    // For overhead slams, spawn shockwave at the end
-    if (m_type == SwingType::Overhead && GetProgress() >= 0.95f && m_lifetime < m_duration - deltaTime) {
-        // TODO: Spawn shockwave entity here when implemented
-    }
 }
 
 void SwordSwing::Draw() const {
@@ -133,7 +114,7 @@ void SwordSwing::Draw() const {
     }
 
     // Draw the blade itself
-    float bladeThickness = (m_type == SwingType::Overhead) ? 7.0f : 5.0f;
+    float bladeThickness = 5.0f;
 
     // Draw blade with glow
     DrawLineEx(m_position, swordEnd, bladeThickness + 2.0f, Fade(m_color, 0.3f));
